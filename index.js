@@ -29,16 +29,21 @@ app.get('/api/notes',(request,response) => {
         response.json(notes)
     })
 })
-
+//Buscar uno solo
 app.get('/api/notes/:id',(request,response) => {
-    const id = Number(request.params.id)
-    const note = notes.find(n => n.id===id)
-    if (note) {
-        response.json(note)
-    }
-    else {
-        response.status(404).end()
-    }
+    Note.findById(request.params.id)
+        .then(note => {
+            if (note) {
+            response.json(note)
+            }
+            else {
+                response.status(404).end()
+            }
+        })
+        .catch(error => {
+            console.log(error);
+            response.status(400).send({error: 'malformated id'})
+        })
 })
 //Borrar uno
 app.delete('/api/notes/:id',(request,response) => {
@@ -48,13 +53,6 @@ app.delete('/api/notes/:id',(request,response) => {
     response.status(204).end()
 })
 
-const generateId = () => {
-    const maxId = notes.length > 0
-        ? Math.max(...notes.map(n=>n.id))
-        : 0
-    return maxId+1
-}
-
 //Agregar uno
 app.post('/api/notes',(request,response) => {
     const body = request.body
@@ -63,26 +61,27 @@ app.post('/api/notes',(request,response) => {
             error: 'content missing'
         })
     }
-    const note = {
-        id: generateId(),
+    const note = new Note( {
         content: body.content,
         important: Boolean(body.important) || false
-    }
-    notes=notes.concat(note)
-    response.json(note)
+    })
+    note.save().then(result => response.json(note))
 })
 
 app.put('/api/notes/:id',(request,response) => {
-    const id = Number(request.params.id)
     const body = request.body
-    const note = notes.find(n => n.id === id)
-    if (!note) return response.status(404).end()
-    const updateNote ={...note,important:body.important}
-    notes=notes.map(n => n.id!==id?n : updateNote)
-    response.json(updateNote)
+    const note = {
+        content: body.content,
+        important: body.important
+    }
+    Note.findByIdAndUpdate(request.params.id,note,{new:true})
+        .then(result => {
+            response.json(result)
+        })
+        .catch(error => next(error))
 })
 
-const PORT= process.env.PORT || 3001
+const PORT= process.env.PORT
 app.listen(PORT, ()=> {
-    //console.log(Server express running on port ${PORT});
+    console.log(`Server express running on port ${PORT}`);
 })
